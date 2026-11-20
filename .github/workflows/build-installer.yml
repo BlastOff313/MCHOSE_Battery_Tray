@@ -77,16 +77,32 @@ jobs:
           $setup = Get-ChildItem .\dist\MCHOSE-Battery-Tray-Setup-*.exe -ErrorAction Stop
           $setup | Format-Table Name, Length
 
-      - name: Upload installer artifact
+      - name: Package portable legacy edition
+        shell: pwsh
+        run: |
+          $portableDir = Join-Path $PWD 'dist\portable'
+          New-Item -ItemType Directory -Path $portableDir -Force | Out-Null
+          Copy-Item .\portable\* $portableDir -Recurse -Force
+          Copy-Item .\LICENSE, .\CONTRIBUTORS.md $portableDir -Force
+          $portableZip = '.\dist\MCHOSE-Battery-Tray-Portable-v9.0.zip'
+          Compress-Archive -Path (Join-Path $portableDir '*') -DestinationPath $portableZip -Force
+          if (-not (Test-Path $portableZip)) { throw 'Portable ZIP was not created.' }
+          Write-Host "Created portable archive: $portableZip"
+
+      - name: Upload release packages
         uses: actions/upload-artifact@v7.0.2
         with:
-          name: MCHOSE-Battery-Tray-Setup-${{ env.APP_VERSION }}
-          path: .\dist\MCHOSE-Battery-Tray-Setup-*.exe
+          name: MCHOSE-Battery-Tray-Packages-${{ env.APP_VERSION }}
+          path: |
+            .\dist\MCHOSE-Battery-Tray-Setup-*.exe
+            .\dist\MCHOSE-Battery-Tray-Portable-v9.0.zip
           if-no-files-found: error
 
       - name: Publish GitHub Release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          files: .\dist\MCHOSE-Battery-Tray-Setup-*.exe
+          files: |
+            .\dist\MCHOSE-Battery-Tray-Setup-*.exe
+            .\dist\MCHOSE-Battery-Tray-Portable-v9.0.zip
           generate_release_notes: true
