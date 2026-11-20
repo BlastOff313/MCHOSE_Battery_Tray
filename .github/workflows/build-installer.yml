@@ -1,7 +1,3 @@
-<<<<<<< HEAD
-=======
-
->>>>>>> b3d1e7b9a1325a3528b49da592dfdc16b6491a55
 name: Build Windows installer
 
 on:
@@ -15,19 +11,40 @@ permissions:
 
 jobs:
   build:
+    name: Build MCHOSE Battery Tray
     runs-on: windows-latest
-<<<<<<< HEAD
-=======
-
->>>>>>> b3d1e7b9a1325a3528b49da592dfdc16b6491a55
     steps:
       - name: Check out source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7.0.1
 
       - name: Set up .NET 10
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v6.1.0
         with:
-          dotnet-version: 10.0.x
+          dotnet-version: '10.0.x'
+
+      - name: Verify app and installer versions
+        shell: pwsh
+        run: |
+          [xml]$project = Get-Content .\src\MCHOSE.BatteryTray.csproj -Raw
+          $versionNode = $project.Project.PropertyGroup | Where-Object { $_.Version } | Select-Object -First 1
+          $version = [string]$versionNode.Version
+          $issText = Get-Content .\installer\MCHOSE-Battery-Tray.iss -Raw
+          $match = [regex]::Match($issText, '(?m)^#define\s+MyAppVersion\s+"([^"]+)"')
+          if (-not $version) { throw 'Version is missing from src/MCHOSE.BatteryTray.csproj' }
+          if (-not $match.Success) { throw 'MyAppVersion is missing from installer/MCHOSE-Battery-Tray.iss' }
+          $installerVersion = $match.Groups[1].Value
+          if ($version -ne $installerVersion) {
+            throw "Version mismatch: csproj=$version, installer=$installerVersion"
+          }
+          $iconSource = Get-Content .\src\IconFactory.cs -Raw
+          if ($iconSource -notmatch '\.DrawString\(') {
+            throw 'Expected the DrawString-based tray icon renderer.'
+          }
+          if ($iconSource -match 'path\.AddString\(') {
+            throw 'The old GraphicsPath.AddString renderer is still present.'
+          }
+          "APP_VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          Write-Host "Verified application and installer version: $version"
 
       - name: Publish self-contained Windows app
         shell: pwsh
@@ -40,6 +57,10 @@ jobs:
             -p:IncludeNativeLibrariesForSelfExtract=true `
             -p:EnableCompressionInSingleFile=true `
             --output .\publish
+          if ($LASTEXITCODE -ne 0) { throw "dotnet publish failed with exit code $LASTEXITCODE" }
+          $exe = Get-Item .\publish\MCHOSE.BatteryTray.exe -ErrorAction Stop
+          Write-Host "Published EXE: $($exe.FullName)"
+          Write-Host "Product version: $($exe.VersionInfo.ProductVersion)"
 
       - name: Install Inno Setup
         shell: pwsh
@@ -53,11 +74,13 @@ jobs:
           if (-not (Test-Path $compiler)) { throw "Inno Setup compiler not found: $compiler" }
           & $compiler .\installer\MCHOSE-Battery-Tray.iss
           if ($LASTEXITCODE -ne 0) { throw "Inno Setup failed with exit code $LASTEXITCODE" }
+          $setup = Get-ChildItem .\dist\MCHOSE-Battery-Tray-Setup-*.exe -ErrorAction Stop
+          $setup | Format-Table Name, Length
 
       - name: Upload installer artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7.0.2
         with:
-          name: MCHOSE-Battery-Tray-Setup
+          name: MCHOSE-Battery-Tray-Setup-${{ env.APP_VERSION }}
           path: .\dist\MCHOSE-Battery-Tray-Setup-*.exe
           if-no-files-found: error
 
