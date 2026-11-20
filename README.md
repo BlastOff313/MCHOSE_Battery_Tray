@@ -1,5 +1,20 @@
 # MCHOSE Battery Tray
 
+
+## Editions and downloads
+
+Choose the edition that fits how you want to use the app:
+
+| Edition | Download | Description |
+|---|---|---|
+| **Windows Installer v10.0.2** (recommended) | [Download from Releases](https://github.com/BlastOff313/MCHOSE_Battery_Tray/releases/latest) | Native .NET Windows app, installer, optional startup, bounded logs, and standard uninstall. |
+| **Portable v9.0** (legacy) | [Download Portable ZIP](https://github.com/BlastOff313/MCHOSE_Battery_Tray/releases/latest/download/MCHOSE-Battery-Tray-Portable-v9.0.zip) | No installer. Extract the ZIP and run `start.vbs`. Uses built-in Windows PowerShell 5.1. |
+
+The Portable edition is retained for users who prefer a no-install package. It is a legacy v9.0 codebase and does **not** include all v10.0.2 improvements (including the 500-line log limit and native .NET application identity). For a new installation, use the Windows Installer.
+
+**Important:** do not run Portable and Installer editions at the same time. Close one edition before starting the other to avoid duplicate tray icons and competing HID polls.
+
+
 ## Latest release note — v10.0.2
 
 Hardens the HID request/response path: input reports and output commands now use separate device handles and separate `FileStream` instances. The app watches incoming reports and output-write completion concurrently instead of waiting for `WriteAsync` before examining the input report. This allows a valid battery response to be accepted even if the HID driver delays write completion. The log now marks reports received while output completion is pending. This change still requires validation with a physical MCHOSE X9 receiver. The release also retains the corrected `Graphics.DrawString` tray-icon renderer from v10.0.1.
