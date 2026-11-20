@@ -1,3 +1,3 @@
-Windows notification-area battery monitor for supported MCHOSE 2.4 GHz wireless headsets. Native tray app, red–white–green battery gradient, optional bounded logs, self-contained Windows installer, and clean uninstall. MIT License.
+Windows battery monitor for supported MCHOSE 2.4 GHz wireless headsets. Choose the native Windows Installer or legacy no-install Portable ZIP. Red–white–green tray indicator. MIT License.
 
-Suggested topics: mchose, headset, battery-monitor, windows, system-tray, winforms, csharp, hid, windows-11, open-source
+Suggested topics: mchose, headset, battery-monitor, windows, system-tray, winforms, csharp, hid, windows-11, portable-app, open-source
