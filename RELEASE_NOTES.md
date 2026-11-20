@@ -1,7 +1,26 @@
-# MCHOSE Battery Tray v10.0.2
+# MCHOSE Battery Tray v10.0.2 — Release notes
 
-This release changes the HID request/response flow after reports showed repeated `HID output report write timed out` failures. Input and output now use separate handles/streams, and the app watches the input response and output-write completion concurrently. It does not discard a valid battery report merely because the HID driver's output completion remains pending. Successful reports received in that state are marked in the diagnostic log as `output completion pending`.
+This release is distributed in two editions:
 
-The tray icon renderer, battery gradient, logging controls, installer registration, and 60-second polling interval are retained from v10.0.1.
+- **Windows Installer v10.0.2** — recommended native Windows application. Install with the setup executable. Supports optional startup with Windows, bounded/optional logs, and uninstall from Windows Installed apps.
+- **Portable v9.0 (legacy)** — no-install PowerShell edition. Extract the ZIP and run `start.vbs`. It is preserved for users who prefer a portable package, but it does not include all v10.0.2 improvements.
 
-This is a targeted code-path correction, not a claim of verified hardware compatibility: it still needs testing with the project owner's physical MCHOSE X9 receiver. If no response is received, the updated log provides more specific information about whether the output write remained pending or failed.
+Do not run both editions at the same time.
+
+## v10.0.2 changes
+
+- Separate HID input and output handles/streams.
+- Process incoming receiver reports while output-write completion is pending.
+- Clearer HID diagnostics.
+- Retains the corrected tray icon renderer and red–white–green battery gradient.
+- 60-second battery polling interval.
+- Optional bounded diagnostics log (500 lines, 14-day retention) in the native installer edition.
+
+## Downloads
+
+Both files are attached to this GitHub Release:
+
+- `MCHOSE-Battery-Tray-Setup-10.0.2.exe`
+- `MCHOSE-Battery-Tray-Portable-v9.0.zip`
+
+For supported receiver IDs, connection-mode requirements, safety notes, and detailed instructions, see [README.md](README.md) or [README.ru.md](README.ru.md).
