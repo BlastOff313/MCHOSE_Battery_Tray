@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel;
 using System.Collections.Generic;
 using System.IO;
 using System.Runtime.InteropServices;
@@ -14,6 +15,7 @@ namespace MchoseBatteryTray
         public bool HasPercent;
         public bool IsDisconnected;
         public bool IsUnsupportedDevice;
+        public bool OutputWritePending;
         public int Percent;
         public byte State;
         public string DeviceName;
@@ -215,80 +217,131 @@ namespace MchoseBatteryTray
             return found;
         }
 
+        private static string GetLastWin32ErrorText(string operation)
+        {
+            int error = Marshal.GetLastWin32Error();
+            return operation + " (Win32 " + error + "): " + new Win32Exception(error).Message;
+        }
+
+        private static void ObserveAbandonedRead(Task<int> readTask)
+        {
+            if (readTask == null) return;
+            _ = readTask.ContinueWith(
+                task => { var ignored = task.Exception; },
+                TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously);
+        }
+
         private static bool TryQueryCandidate(DeviceCandidate candidate, out BatteryResult result, int timeoutMs)
         {
-            result = new BatteryResult();
-            result.Success = false;
-            result.ResponseReceived = false;
-            result.HasPercent = false;
-            result.Detail = "No battery response.";
-
-            SafeFileHandle handle = CreateFile(candidate.Path, GenericRead | GenericWrite, ShareRead | ShareWrite, IntPtr.Zero, OpenExisting, FileFlagOverlapped, IntPtr.Zero);
-            if (handle == null || handle.IsInvalid)
+            result = new BatteryResult
             {
-                if (handle != null) handle.Dispose();
-                result.Detail = "Unable to open matching HID collection.";
+                Success = false,
+                ResponseReceived = false,
+                HasPercent = false,
+                Detail = "No battery response."
+            };
+
+            // Open separate input and output handles for the same HID collection.
+            // Keep report reading independent from output-write completion: some HID
+            // drivers may delay completion of a WriteFile operation. A matching input
+            // report must still be processed while the output operation is pending.
+            SafeFileHandle readHandle = CreateFile(
+                candidate.Path, GenericRead, ShareRead | ShareWrite, IntPtr.Zero,
+                OpenExisting, FileFlagOverlapped, IntPtr.Zero);
+            if (readHandle == null || readHandle.IsInvalid)
+            {
+                string error = GetLastWin32ErrorText("Unable to open HID input handle");
+                if (readHandle != null) readHandle.Dispose();
+                result.Detail = error;
                 return false;
             }
 
+            SafeFileHandle writeHandle = CreateFile(
+                candidate.Path, GenericWrite, ShareRead | ShareWrite, IntPtr.Zero,
+                OpenExisting, FileFlagOverlapped, IntPtr.Zero);
+            if (writeHandle == null || writeHandle.IsInvalid)
+            {
+                string error = GetLastWin32ErrorText("Unable to open HID output handle");
+                if (writeHandle != null) writeHandle.Dispose();
+                readHandle.Dispose();
+                result.Detail = error;
+                return false;
+            }
+
+            Task<int> readTask = null;
+            Task writeTask = null;
             try
             {
-                using (FileStream stream = new FileStream(handle, FileAccess.ReadWrite, 64, true))
+                using (FileStream inputStream = new FileStream(readHandle, FileAccess.Read, 64, true))
+                using (FileStream outputStream = new FileStream(writeHandle, FileAccess.Write, 64, true))
                 {
                     byte[] output = new byte[candidate.OutputLength];
                     output[0] = candidate.Profile.ReportId;
                     output[1] = candidate.Profile.Command;
                     output[2] = candidate.Profile.QueryCode;
 
-                    // Start listening before sending the request so an immediate receiver reply is not missed.
+                    // Queue an input read first, then send the request through the separate
+                    // output handle. Never wait for WriteAsync before checking the input side:
+                    // some HID drivers can leave write completion pending even after the
+                    // receiver has already returned a valid input report.
                     byte[] input = new byte[candidate.InputLength];
-                    Task<int> readTask = stream.ReadAsync(input, 0, input.Length);
-                    Task writeTask = stream.WriteAsync(output, 0, output.Length);
-
-                    try
-                    {
-                        if (!writeTask.Wait(1200))
-                        {
-                            result.Detail = "HID output report write timed out.";
-                            try { stream.Dispose(); } catch { }
-                            return false;
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        result.Detail = "HID output report failed: " + ex.GetBaseException().Message;
-                        return false;
-                    }
+                    readTask = inputStream.ReadAsync(input, 0, input.Length);
+                    writeTask = outputStream.WriteAsync(output, 0, output.Length);
 
                     DateTime deadline = DateTime.UtcNow.AddMilliseconds(timeoutMs);
+                    bool writeFinished = false;
+                    string writeFailure = null;
+
                     while (true)
                     {
                         int remaining = (int)Math.Max(0, (deadline - DateTime.UtcNow).TotalMilliseconds);
                         if (remaining <= 0)
                         {
-                            result.Detail = "No battery reply from MCHOSE headset (timeout).";
-                            try { stream.Dispose(); } catch { }
+                            ObserveAbandonedRead(readTask);
+                            ObserveAbandonedWrite(writeTask);
+                            if (!writeFinished)
+                                result.Detail = "HID output write remained pending and no battery response arrived before timeout.";
+                            else if (writeFailure != null)
+                                result.Detail = "HID output report failed: " + writeFailure + "; no battery response arrived.";
+                            else
+                                result.Detail = "No battery reply from MCHOSE headset (timeout).";
                             return false;
                         }
 
-                        bool completed;
-                        try { completed = readTask.Wait(remaining); }
-                        catch (Exception ex)
+                        Task delayTask = Task.Delay(remaining);
+                        Task completedTask = writeFinished
+                            ? Task.WhenAny(readTask, delayTask).GetAwaiter().GetResult()
+                            : Task.WhenAny(readTask, writeTask, delayTask).GetAwaiter().GetResult();
+
+                        if (!writeFinished && completedTask == writeTask)
                         {
-                            result.Detail = "HID input report failed: " + ex.GetBaseException().Message;
-                            return false;
+                            writeFinished = true;
+                            if (writeTask.IsFaulted)
+                                writeFailure = writeTask.Exception.GetBaseException().Message;
+                            else if (writeTask.IsCanceled)
+                                writeFailure = "The output report write was cancelled.";
+                            // Continue listening even if the write reports an error: a valid
+                            // receiver response may already be queued on the input handle.
+                            continue;
                         }
 
-                        if (!completed)
-                        {
-                            result.Detail = "No battery reply from MCHOSE headset (timeout).";
-                            try { stream.Dispose(); } catch { }
-                            return false;
-                        }
+                        if (completedTask == delayTask)
+                            continue; // The deadline check above sets the final diagnostic.
+
+                        if (completedTask != readTask)
+                            continue;
 
                         if (readTask.IsFaulted)
                         {
                             result.Detail = "HID input report failed: " + readTask.Exception.GetBaseException().Message;
+                            ObserveAbandonedWrite(writeTask);
+                            return false;
+                        }
+
+                        if (readTask.IsCanceled)
+                        {
+                            result.Detail = "HID input report read was cancelled.";
+                            ObserveAbandonedWrite(writeTask);
                             return false;
                         }
 
@@ -296,21 +349,21 @@ namespace MchoseBatteryTray
                         if (count <= 0)
                         {
                             result.Detail = "HID input stream closed before a battery response.";
+                            ObserveAbandonedWrite(writeTask);
                             return false;
                         }
 
                         // Some legacy receivers push 00 1A when the headset powers off.
-                        // Treat that documented event as an explicit offline indication.
                         if (count >= 2 && input[0] == 0x00 && input[1] == 0x1A)
                         {
                             result.IsDisconnected = true;
                             result.ResponseReceived = true;
                             result.Detail = "Receiver reported that the headset is offline (00 1A).";
+                            ObserveAbandonedWrite(writeTask);
                             return true;
                         }
 
-                        // The receiver may send a connection notification (55 11) or another event
-                        // before the requested battery response. Ignore unrelated reports.
+                        // Ignore connection notifications and unrelated HID reports.
                         if (count >= 4 && input[0] == candidate.Profile.ReportId && input[1] == candidate.Profile.Command)
                         {
                             int level = input[2];
@@ -323,17 +376,20 @@ namespace MchoseBatteryTray
                             {
                                 result.IsDisconnected = true;
                                 result.Detail = "The headset is off or asleep; the receiver reports it as offline.";
+                                ObserveAbandonedWrite(writeTask);
                                 return true;
                             }
 
-                            // The MCHOSE protocol reports the percent reliably while on battery (state 0x02).
-                            // On cable/charging (states 0x00/0x03), the level may be stale, so do not publish it.
                             if (state == 0x02 && level <= 100)
                             {
                                 result.Success = true;
                                 result.HasPercent = true;
                                 result.Percent = level;
-                                result.Detail = "Battery report received.";
+                                result.OutputWritePending = !writeFinished;
+                                result.Detail = writeFinished
+                                    ? "Battery report received."
+                                    : "Battery report received while HID output completion was still pending.";
+                                ObserveAbandonedWrite(writeTask);
                                 return true;
                             }
 
@@ -341,11 +397,16 @@ namespace MchoseBatteryTray
                             {
                                 result.Success = true;
                                 result.HasPercent = false;
-                                result.Detail = "Headset is connected to power; its reported percentage may be stale.";
+                                result.OutputWritePending = !writeFinished;
+                                result.Detail = writeFinished
+                                    ? "Headset is connected to power; its reported percentage may be stale."
+                                    : "Charging state received while HID output completion was still pending.";
+                                ObserveAbandonedWrite(writeTask);
                                 return true;
                             }
 
                             result.Detail = "Unexpected battery state: " + state + ", level: " + level + ".";
+                            ObserveAbandonedWrite(writeTask);
                             return true;
                         }
 
@@ -356,19 +417,32 @@ namespace MchoseBatteryTray
                         result.Detail = "Ignored unrelated HID report (" + reportHex + "); waiting for battery reply.";
 
                         input = new byte[candidate.InputLength];
-                        readTask = stream.ReadAsync(input, 0, input.Length);
+                        readTask = inputStream.ReadAsync(input, 0, input.Length);
                     }
                 }
             }
             catch (Exception ex)
             {
+                ObserveAbandonedRead(readTask);
+                ObserveAbandonedWrite(writeTask);
                 result.Detail = ex.GetBaseException().Message;
                 return false;
             }
             finally
             {
-                handle.Dispose();
+                // FileStream disposes the SafeFileHandles. Explicit Dispose is also safe
+                // and covers failures before stream construction completes.
+                try { readHandle.Dispose(); } catch { }
+                try { writeHandle.Dispose(); } catch { }
             }
+        }
+
+        private static void ObserveAbandonedWrite(Task writeTask)
+        {
+            if (writeTask == null) return;
+            _ = writeTask.ContinueWith(
+                task => { var ignored = task.Exception; },
+                TaskContinuationOptions.OnlyOnFaulted | TaskContinuationOptions.ExecuteSynchronously);
         }
 
         public static BatteryResult Query()

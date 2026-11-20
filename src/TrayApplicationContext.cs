@@ -79,7 +79,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
         _timer.Tick += async (_, _) => await RefreshAsync();
         _timer.Start();
 
-        AppLog.Write("MCHOSE Battery Tray 10.0.1 started; poll interval 60 seconds.");
+        AppLog.Write("MCHOSE Battery Tray 10.0.2 started; poll interval 60 seconds.");
         // Start the first asynchronous HID query only after the WinForms message loop
         // is active, so its continuation returns to the UI synchronization context.
         Application.Idle += StartInitialPoll;
@@ -158,7 +158,8 @@ internal sealed class TrayApplicationContext : ApplicationContext
             _lastGoodAt = DateTime.Now;
             tooltip = $"MCHOSE {result.DeviceName ?? "headset"}: {_lastGoodPercent}%";
             status = $"Заряд: {_lastGoodPercent}% (работает от батареи)";
-            logState = $"OK: {_lastGoodPercent}% / state {result.State} / {result.DeviceName}";
+            string outputStatus = result.OutputWritePending ? " / output completion pending" : "";
+            logState = $"OK: {_lastGoodPercent}% / state {result.State} / {result.DeviceName}{outputStatus}";
             newIcon = IconFactory.CreateBattery(_lastGoodPercent, lightTaskbar);
         }
         else if (result.Success && !result.HasPercent)
@@ -176,7 +177,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
                 status = "На зарядке; процент сейчас не передаётся";
                 newIcon = IconFactory.CreateDisconnected(true, lightTaskbar);
             }
-            logState = "CHARGING: state " + result.State;
+            logState = "CHARGING: state " + result.State + (result.OutputWritePending ? " / output completion pending" : "");
         }
         else
         {

@@ -1,23 +1,7 @@
-# MCHOSE Battery Tray v10.0.1
+# MCHOSE Battery Tray v10.0.2
 
-This is a bug-fix release for v10.0.0. It restores the previously proven `Graphics.DrawString` icon renderer, which fixes the blank notification-area icon reported on Windows 11. A startup guard now detects an empty rendered bitmap instead of silently creating an invisible tray icon.
+This release changes the HID request/response flow after reports showed repeated `HID output report write timed out` failures. Input and output now use separate handles/streams, and the app watches the input response and output-write completion concurrently. It does not discard a valid battery report merely because the HID driver's output completion remains pending. Successful reports received in that state are marked in the diagnostic log as `output completion pending`.
 
+The tray icon renderer, battery gradient, logging controls, installer registration, and 60-second polling interval are retained from v10.0.1.
 
-## What's new
-
-- Native Windows tray application; no PowerShell host process.
-- App identity and executable metadata use the name **MCHOSE Battery Tray**.
-- Inno Setup installer for per-user installation and standard Windows uninstall registration.
-- Red → soft-white → green battery percentage gradient.
-- Diagnostic logging can be disabled from the tray menu.
-- Active log is capped at 500 lines and 4,096 characters per entry; stale logs are cleaned after 14 days.
-- Settings and logs are stored in the current user's LocalAppData folder and preserved after uninstall.
-- .NET 10 LTS self-contained win-x64 publish; no separate runtime installation required.
-
-## Compatibility
-
-The supported VID:PID and protocol matrix is documented in [README.md](README.md) and [PROTOCOLS.md](PROTOCOLS.md). MCHOSE X9 (`3837:6045`) is the receiver tested by the project owner. Other receiver profiles are based on published community/M HUB research and still need more owner testing.
-
-## Installer
-
-The Windows installer is built by GitHub Actions. Run the workflow manually for a test artifact, or push tag `v10.0.1` to create a GitHub Release with the installer attached.
+This is a targeted code-path correction, not a claim of verified hardware compatibility: it still needs testing with the project owner's physical MCHOSE X9 receiver. If no response is received, the updated log provides more specific information about whether the output write remained pending or failed.

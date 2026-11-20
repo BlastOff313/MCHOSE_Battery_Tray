@@ -1,5 +1,14 @@
 # Changelog
 
+## v10.0.2
+
+- Isolated HID input and output on separate handles/streams.
+- Processed incoming receiver reports while output-write completion is still pending, instead of discarding a valid battery response after a write timeout.
+- Logged when a battery response arrives before the output-write operation reports completion.
+- Added clearer diagnostics for HID input/output handle opening and timed-out writes.
+- Kept the v10.0.1 tray icon renderer and battery color gradient.
+- Poll interval remains 60 seconds.
+
 ## v10.0.1
 
 - Fixed blank notification-area icons by restoring the `Graphics.DrawString` rendering path used by the last working release.

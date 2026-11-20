@@ -1,8 +1,8 @@
 # MCHOSE Battery Tray
 
-## Latest release note — v10.0.1
+## Latest release note — v10.0.2
 
-Fixes a blank notification-area icon on some Windows 11 systems by restoring the `Graphics.DrawString`-based renderer from the last working release. The app now checks that the generated icon bitmap contains visible pixels and reports a clear error instead of silently creating a transparent icon.
+Hardens the HID request/response path: input reports and output commands now use separate device handles and separate `FileStream` instances. The app watches incoming reports and output-write completion concurrently instead of waiting for `WriteAsync` before examining the input report. This allows a valid battery response to be accepted even if the HID driver delays write completion. The log now marks reports received while output completion is pending. This change still requires validation with a physical MCHOSE X9 receiver. The release also retains the corrected `Graphics.DrawString` tray-icon renderer from v10.0.1.
 
 A lightweight native Windows notification-area app that displays the battery level of supported MCHOSE wireless headsets. It communicates with supported 2.4 GHz USB receivers using read-only HID requests and does not require MCHOSE HUB to stay open.
 
@@ -53,10 +53,10 @@ A model name alone is not enough to guarantee support. Contributions should add 
 ## Installation
 
 1. Close any older PowerShell-based MCHOSE tray version to avoid seeing two icons during the upgrade.
-2. Download `MCHOSE-Battery-Tray-Setup-10.0.1.exe` from the repository GitHub **Releases** page.
+2. Download `MCHOSE-Battery-Tray-Setup-10.0.2.exe` from the repository GitHub **Releases** page.
 3. Run the installer. It installs into your user profile and does not require administrator rights.
-3. Optionally select **Start MCHOSE Battery Tray when I sign in to Windows** during setup.
-4. The app starts in the notification area. If Windows initially hides it behind `^`, open **Settings → Personalization → Taskbar → Other system tray icons** and enable **MCHOSE Battery Tray**, or drag it onto the visible tray area.
+4. Optionally select **Start MCHOSE Battery Tray when I sign in to Windows** during setup.
+5. The app starts in the notification area. If Windows initially hides it behind `^`, open **Settings → Personalization → Taskbar → Other system tray icons** and enable **MCHOSE Battery Tray**, or drag it onto the visible tray area.
 
 The tray process is a native executable with its own product metadata and AppUserModelID. It is no longer hosted by Windows PowerShell 5.1. The executable's product metadata and process AppUserModelID are set to **MCHOSE Battery Tray**, so Windows has an app identity to display in the notification-area settings rather than the generic PowerShell host name. The exact label should still be confirmed on different Windows 11 builds.
 
@@ -101,9 +101,9 @@ Run PowerShell from the repository root:
 .\build.ps1
 ```
 
-The script publishes a self-contained single-file application and compiles the Inno Setup package into `dist\MCHOSE-Battery-Tray-Setup-10.0.1.exe`.
+The script publishes a self-contained single-file application and compiles the Inno Setup package into `dist\MCHOSE-Battery-Tray-Setup-10.0.2.exe`.
 
-A GitHub Actions workflow at `.github/workflows/build-installer.yml` builds the installer on `workflow_dispatch` or when a `v*` tag is pushed. For a public release, push a tag such as `v10.0.1`; the workflow creates a GitHub Release and attaches the installer.
+A GitHub Actions workflow at `.github/workflows/build-installer.yml` builds the installer on `workflow_dispatch` or when a `v*` tag is pushed. For a public release, push a tag such as `v10.0.2`; the workflow creates a GitHub Release and attaches the installer.
 
 The project targets **.NET 10 LTS**, which is supported through November 2028. <https://dotnet.microsoft.com/en-us/platform/support/policy>
 
