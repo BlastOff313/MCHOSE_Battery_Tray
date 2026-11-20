@@ -79,7 +79,7 @@ internal sealed class TrayApplicationContext : ApplicationContext
         _timer.Tick += async (_, _) => await RefreshAsync();
         _timer.Start();
 
-        AppLog.Write("MCHOSE Battery Tray 10.0.0 started; poll interval 60 seconds.");
+        AppLog.Write("MCHOSE Battery Tray 10.0.1 started; poll interval 60 seconds.");
         // Start the first asynchronous HID query only after the WinForms message loop
         // is active, so its continuation returns to the UI synchronization context.
         Application.Idle += StartInitialPoll;

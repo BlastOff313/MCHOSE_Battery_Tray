@@ -12,10 +12,10 @@
     <PublishTrimmed>false</PublishTrimmed>
     <AssemblyName>MCHOSE.BatteryTray</AssemblyName>
     <RootNamespace>MchoseBatteryTray</RootNamespace>
-    <Version>10.0.0</Version>
-    <AssemblyVersion>10.0.0.0</AssemblyVersion>
-    <FileVersion>10.0.0.0</FileVersion>
-    <InformationalVersion>10.0.0</InformationalVersion>
+    <Version>10.0.1</Version>
+    <AssemblyVersion>10.0.1.0</AssemblyVersion>
+    <FileVersion>10.0.1.0</FileVersion>
+    <InformationalVersion>10.0.1</InformationalVersion>
     <AssemblyTitle>MCHOSE Battery Tray</AssemblyTitle>
     <Product>MCHOSE Battery Tray</Product>
     <Company>MCHOSE Battery Tray contributors</Company>

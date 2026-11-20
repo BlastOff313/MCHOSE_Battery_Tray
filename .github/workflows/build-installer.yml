@@ -1,3 +1,7 @@
+<<<<<<< HEAD
+=======
+
+>>>>>>> b3d1e7b9a1325a3528b49da592dfdc16b6491a55
 name: Build Windows installer
 
 on:
@@ -12,6 +16,10 @@ permissions:
 jobs:
   build:
     runs-on: windows-latest
+<<<<<<< HEAD
+=======
+
+>>>>>>> b3d1e7b9a1325a3528b49da592dfdc16b6491a55
     steps:
       - name: Check out source
         uses: actions/checkout@v4

@@ -1,5 +1,12 @@
 # Changelog
 
+## v10.0.1
+
+- Fixed blank notification-area icons by restoring the `Graphics.DrawString` rendering path used by the last working release.
+- Added a visible-pixel guard: the app now reports an icon-rendering error instead of silently registering a transparent icon.
+- Kept the battery colour gradient, Bahnschrift Bold typography, HID polling, log controls, and installer behavior.
+
+
 ## v10.0.0
 
 - Replaced the PowerShell-hosted tray script with a native WinForms executable (`MCHOSE.BatteryTray.exe`).

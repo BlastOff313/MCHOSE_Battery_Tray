@@ -1,4 +1,7 @@
-# MCHOSE Battery Tray v10.0.0
+# MCHOSE Battery Tray v10.0.1
+
+This is a bug-fix release for v10.0.0. It restores the previously proven `Graphics.DrawString` icon renderer, which fixes the blank notification-area icon reported on Windows 11. A startup guard now detects an empty rendered bitmap instead of silently creating an invisible tray icon.
+
 
 ## What's new
 
@@ -17,4 +20,4 @@ The supported VID:PID and protocol matrix is documented in [README.md](README.md
 
 ## Installer
 
-The Windows installer is built by GitHub Actions. Run the workflow manually for a test artifact, or push tag `v10.0.0` to create a GitHub Release with the installer attached.
+The Windows installer is built by GitHub Actions. Run the workflow manually for a test artifact, or push tag `v10.0.1` to create a GitHub Release with the installer attached.

@@ -28,4 +28,4 @@ if (-not (Test-Path $compiler)) {
 Write-Host 'Building Windows installer...' -ForegroundColor Cyan
 & $compiler '.\installer\MCHOSE-Battery-Tray.iss'
 if ($LASTEXITCODE -ne 0) { throw "Inno Setup failed with exit code $LASTEXITCODE" }
-Write-Host "Installer created: $dist\MCHOSE-Battery-Tray-Setup-10.0.0.exe" -ForegroundColor Green
+Write-Host "Installer created: $dist\MCHOSE-Battery-Tray-Setup-10.0.1.exe" -ForegroundColor Green

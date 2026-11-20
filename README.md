@@ -1,5 +1,9 @@
 # MCHOSE Battery Tray
 
+## Latest release note — v10.0.1
+
+Fixes a blank notification-area icon on some Windows 11 systems by restoring the `Graphics.DrawString`-based renderer from the last working release. The app now checks that the generated icon bitmap contains visible pixels and reports a clear error instead of silently creating a transparent icon.
+
 A lightweight native Windows notification-area app that displays the battery level of supported MCHOSE wireless headsets. It communicates with supported 2.4 GHz USB receivers using read-only HID requests and does not require MCHOSE HUB to stay open.
 
 > **Compatibility note:** this is not a universal driver for every MCHOSE headset. Compatibility depends on the exact receiver hardware and firmware revision. Unknown receiver IDs are never sent vendor battery commands.
@@ -49,7 +53,7 @@ A model name alone is not enough to guarantee support. Contributions should add 
 ## Installation
 
 1. Close any older PowerShell-based MCHOSE tray version to avoid seeing two icons during the upgrade.
-2. Download `MCHOSE-Battery-Tray-Setup-10.0.0.exe` from the repository GitHub **Releases** page.
+2. Download `MCHOSE-Battery-Tray-Setup-10.0.1.exe` from the repository GitHub **Releases** page.
 3. Run the installer. It installs into your user profile and does not require administrator rights.
 3. Optionally select **Start MCHOSE Battery Tray when I sign in to Windows** during setup.
 4. The app starts in the notification area. If Windows initially hides it behind `^`, open **Settings → Personalization → Taskbar → Other system tray icons** and enable **MCHOSE Battery Tray**, or drag it onto the visible tray area.
@@ -97,9 +101,9 @@ Run PowerShell from the repository root:
 .\build.ps1
 ```
 
-The script publishes a self-contained single-file application and compiles the Inno Setup package into `dist\MCHOSE-Battery-Tray-Setup-10.0.0.exe`.
+The script publishes a self-contained single-file application and compiles the Inno Setup package into `dist\MCHOSE-Battery-Tray-Setup-10.0.1.exe`.
 
-A GitHub Actions workflow at `.github/workflows/build-installer.yml` builds the installer on `workflow_dispatch` or when a `v*` tag is pushed. For a public release, push a tag such as `v10.0.0`; the workflow creates a GitHub Release and attaches the installer.
+A GitHub Actions workflow at `.github/workflows/build-installer.yml` builds the installer on `workflow_dispatch` or when a `v*` tag is pushed. For a public release, push a tag such as `v10.0.1`; the workflow creates a GitHub Release and attaches the installer.
 
 The project targets **.NET 10 LTS**, which is supported through November 2028. <https://dotnet.microsoft.com/en-us/platform/support/policy>
 

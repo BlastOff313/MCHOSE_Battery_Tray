@@ -12,14 +12,14 @@ Install the .NET 10 SDK and Inno Setup 6, then run:
 
 Expected output:
 
-`dist\MCHOSE-Battery-Tray-Setup-10.0.0.exe`
+`dist\MCHOSE-Battery-Tray-Setup-10.0.1.exe`
 
 ## GitHub build
 
 1. Push the repository to GitHub.
 2. Open **Actions → Build Windows installer → Run workflow** for a test build.
 3. Download the `MCHOSE-Battery-Tray-Setup` artifact from the workflow run.
-4. For a public release, push a version tag such as `v10.0.0`. The same workflow builds the installer and attaches it to a GitHub Release.
+4. For a public release, push a version tag such as `v10.0.1`. The same workflow builds the installer and attaches it to a GitHub Release.
 
 The installer uses a per-user install (`%LOCALAPPDATA%\Programs`) and registers an uninstall entry under the current user's installed-apps registry. It does not require elevation. App settings and logs are intentionally preserved when the program is uninstalled.
 

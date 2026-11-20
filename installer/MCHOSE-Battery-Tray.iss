@@ -1,5 +1,5 @@
 #define MyAppName "MCHOSE Battery Tray"
-#define MyAppVersion "10.0.0"
+#define MyAppVersion "10.0.1"
 #define MyAppPublisher "MCHOSE Battery Tray contributors"
 #define MyAppExeName "MCHOSE.BatteryTray.exe"
 
@@ -28,7 +28,7 @@ CloseApplications=yes
 RestartApplications=no
 Uninstallable=yes
 ChangesAssociations=no
-VersionInfoVersion=10.0.0.0
+VersionInfoVersion=10.0.1.0
 VersionInfoProductName={#MyAppName}
 VersionInfoCompany={#MyAppPublisher}
 VersionInfoDescription=Windows tray battery monitor for supported MCHOSE headsets
