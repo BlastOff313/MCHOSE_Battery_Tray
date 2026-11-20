@@ -1,27 +1,31 @@
 # MCHOSE Battery Tray
 
-A lightweight Windows notification-area app that displays the battery level of supported MCHOSE wireless headsets. It uses read-only HID requests to the headset's 2.4 GHz USB receiver and does not require MCHOSE HUB to stay open.
+A lightweight native Windows notification-area app that displays the battery level of supported MCHOSE wireless headsets. It communicates with supported 2.4 GHz USB receivers using read-only HID requests and does not require MCHOSE HUB to stay open.
 
-**License:** [MIT](LICENSE) — free to use, modify, and redistribute, including commercially, subject to preserving the copyright and license notices.
-
-> **Compatibility note:** this is not a universal driver for every MCHOSE headset. It currently supports a set of receiver IDs that share the legacy `FF90:0001` battery protocol. Other models use different protocols and are shown as unsupported until a separate implementation is added.
+> **Compatibility note:** this is not a universal driver for every MCHOSE headset. Compatibility depends on the exact receiver hardware and firmware revision. Unknown receiver IDs are never sent vendor battery commands.
 
 ## Features
 
 - Battery percentage directly in the Windows notification area.
+- Smooth muted **red → soft white → muted green** colour gradient: low charge is red, around 50% is white, high charge is green.
 - `F+` in the tray icon when the reported level is 100%.
 - `×` when the headset is explicitly offline, the receiver is missing, or two consecutive battery polls time out.
-- `?` when Windows detects a MCHOSE audio/HID device but the app cannot obtain a trustworthy battery percentage (unsupported protocol or charging state without a fresh percentage).
-- Windows 11-style compact icon using Bahnschrift Bold, with light/dark taskbar-aware text color.
+- `?` when a physical MCHOSE device is detected but its battery protocol is not supported, or a trustworthy percentage is not currently available while charging.
+- Windows-style compact tray icon using Bahnschrift Bold, with a theme-aware outline for contrast.
 - Automatic refresh every 60 seconds and a manual **Refresh now** command.
 - Optional start with Windows.
-- Local diagnostic log; no cloud account, telemetry, or network connection is used by this app.
+- Optional diagnostic logging, enabled by default on first launch and switchable from the tray menu.
+- Log limit: **500 lines**. The active file is trimmed after every write; old log files are cleaned after **14 days**.
+- Native executable identity (`MCHOSE Battery Tray`) instead of a `powershell.exe` host process.
+- Self-contained Windows installer; no separate .NET runtime installation is required.
+- Appears in Windows **Settings → Apps → Installed apps** and can be removed using the standard Windows uninstaller.
+- No cloud account, telemetry, or application network connection.
 
 ## Compatibility
 
 ### Legacy HID protocol implemented
 
-The following receiver IDs are mapped to the same read-only exchange (`FF90:0001`, output report `55 65 01`, response `55 65 <battery> <state>`):
+The following receiver IDs are mapped to the same community-documented read-only exchange (`FF90:0001`, output report `55 65 01`, response `55 65 <battery> <state>`):
 
 | Headset family / model | USB receiver VID:PID | Evidence status |
 |---|---:|---|
@@ -32,75 +36,112 @@ The following receiver IDs are mapped to the same read-only exchange (`FF90:0001
 | MCHOSE S9 Pro | `41E4:3402` | M HUB-derived / community-documented; not independently tested by this project |
 | V9 Turbo / V9 Turbo+ family | `3837:600D`, `3837:600A`, `3837:6009` | M HUB-derived / community-documented; not independently tested by this project |
 
-The receiver must be connected over USB and the headset must be in **2.4 GHz receiver mode**. The application does not read battery information through Bluetooth.
+The receiver must be connected over USB and the headset must be in **2.4 GHz receiver mode**. This build does not read battery information through Bluetooth or wired audio.
 
 ### Not implemented / requires more protocol data
 
-- **V9 Pro 2 (`3837:6011`)**: uses a different HID collection (`FF07:0222`) and a different `0x55 / 0x0B` battery frame. It is intentionally not queried by this build because its response parser is not implemented here.
-- **R9, S9, G9 (non-Pro), and other variants**: no sufficiently verified receiver mapping/protocol is included yet. If Windows exposes a MCHOSE audio endpoint but the receiver ID/protocol is unknown, the icon shows `?` instead of falsely claiming that the headset is disconnected or inventing a battery value.
-- Bluetooth-only connections and wired audio mode are not supported by the vendor HID reader.
+- **V9 Pro 2 (`3837:6011`)**: uses a different HID collection (`FF07:0222`) and a different `0x55 / 0x0B` battery frame. Its parser is not implemented.
+- **R9, S9, G9 (non-Pro), and other variants**: no sufficiently verified receiver mapping/protocol is included yet. If a physical MCHOSE USB/HID/Bluetooth device is detected but has no supported battery profile, the icon shows `?`.
+- Bluetooth-only connections and wired audio mode are not supported by the battery reader.
 
-Compatibility depends on the exact receiver hardware and firmware revision, not only on the headset name. A model name alone is not enough to guarantee support.
+A model name alone is not enough to guarantee support. Contributions should add exact receiver IDs and protocol details only after hardware testing or a trace from a trusted source.
 
-## Download and run
+## Installation
 
-1. Download and extract the ZIP.
-2. Run `start.vbs` to launch silently, or `start-debug.cmd` to see PowerShell errors.
-3. The icon appears in the Windows notification area. If it is under the `^` overflow menu, open **Settings → Personalization → Taskbar → Other system tray icons** and enable MCHOSE Battery Tray, or drag the icon to the visible area.
-4. Right-click the icon to refresh, enable/disable startup, open the log, or exit.
+1. Close any older PowerShell-based MCHOSE tray version to avoid seeing two icons during the upgrade.
+2. Download `MCHOSE-Battery-Tray-Setup-10.0.0.exe` from the repository GitHub **Releases** page.
+3. Run the installer. It installs into your user profile and does not require administrator rights.
+3. Optionally select **Start MCHOSE Battery Tray when I sign in to Windows** during setup.
+4. The app starts in the notification area. If Windows initially hides it behind `^`, open **Settings → Personalization → Taskbar → Other system tray icons** and enable **MCHOSE Battery Tray**, or drag it onto the visible tray area.
 
-No installer or administrator rights are required. The app uses the Windows PowerShell 5.1 runtime included with Windows 10/11.
+The tray process is a native executable with its own product metadata and AppUserModelID. It is no longer hosted by Windows PowerShell 5.1. The executable's product metadata and process AppUserModelID are set to **MCHOSE Battery Tray**, so Windows has an app identity to display in the notification-area settings rather than the generic PowerShell host name. The exact label should still be confirmed on different Windows 11 builds.
 
-## Status icons
+The installer is not Authenticode-signed. Windows SmartScreen may show a reputation warning for a newly downloaded community build.
 
-| Icon | Meaning |
-|---|---|
-| `0`–`99` | Last successful battery percentage |
-| `F+` | Full; the last reported battery value is 100% |
-| `×` | Headset offline / no receiver / two consecutive query timeouts |
-| `?` | A MCHOSE audio/HID device is present, but no trustworthy percentage is currently available (unsupported receiver/protocol or charging state) |
+### Uninstall
 
-A single missed poll does not immediately mark the headset offline: the app keeps the last known value for one failed polling cycle to avoid flickering on a transient USB/HID timeout.
+Open **Settings → Apps → Installed apps**, find **MCHOSE Battery Tray**, and select **Uninstall**. The installer also creates a standard Start Menu entry. Uninstall removes the program and its startup registration. User settings and logs under `%LOCALAPPDATA%\MCHOSE\Battery Tray` are intentionally preserved.
+
+## Tray menu
+
+Right-click the tray icon to:
+
+- Refresh the battery immediately.
+- Enable or disable start with Windows.
+- Enable or disable diagnostic logging.
+- Open or clear the current log.
+- Exit the application.
+
+## Logging and cleanup
+
+Logging is enabled by default on first launch. Toggle **Log diagnostics** from the tray menu to disable all further log writes. The setting is saved between launches.
+
+- Current log: `%LOCALAPPDATA%\MCHOSE\Battery Tray\Logs\app.log`
+- Maximum active log size: 500 lines. The log is reduced to its newest 500 lines immediately after a write if the limit is exceeded. Individual entries are limited to 4,096 characters.
+- Retention: stale `*.log*` files older than 14 days are removed during startup and periodic cleanup. The current log is emptied if it has not been touched for more than 14 days.
+- Settings: `%LOCALAPPDATA%\MCHOSE\Battery Tray\settings.json`
+
+When logging is disabled, the app does not append diagnostic events. Startup cleanup and log trimming still run.
+
+## Building from source
+
+Requirements:
+
+- Windows 10/11 x64 build machine.
+- .NET 10 SDK.
+- Inno Setup 6.
+
+Run PowerShell from the repository root:
+
+```powershell
+.\build.ps1
+```
+
+The script publishes a self-contained single-file application and compiles the Inno Setup package into `dist\MCHOSE-Battery-Tray-Setup-10.0.0.exe`.
+
+A GitHub Actions workflow at `.github/workflows/build-installer.yml` builds the installer on `workflow_dispatch` or when a `v*` tag is pushed. For a public release, push a tag such as `v10.0.0`; the workflow creates a GitHub Release and attaches the installer.
+
+The project targets **.NET 10 LTS**, which is supported through November 2028. <https://dotnet.microsoft.com/en-us/platform/support/policy>
 
 ## Safety and privacy
 
-- The app sends only a read-only battery query to explicitly listed USB receiver IDs. Unknown product IDs are not queried; Windows PnP audio names are used only to distinguish a present-but-unsupported MCHOSE headset from no detected headset.
-- Unknown product IDs are never sent a vendor command.
+- The app sends only a read-only battery query to explicitly listed USB receiver IDs.
+- Unknown product IDs are not sent vendor commands.
+- PnP/WMI is used only to distinguish a present but unsupported physical MCHOSE device from a disconnected receiver; cached software audio endpoints are ignored.
 - No headset settings, EQ, firmware, or pairing state are changed.
 - No network requests, analytics, or telemetry are implemented.
-- Logs are stored locally under `%LOCALAPPDATA%\MCHOSE_X9_BatteryTray\tray-v9.log`.
+- Diagnostic logging is local and can be disabled at any time.
 
 ## Contributing compatibility reports
 
-If your MCHOSE headset is not supported, please open an issue and include:
+If your MCHOSE headset is not supported, open an issue and include:
 
 - Exact headset model and revision.
-- Whether you used the 2.4 GHz USB receiver, Bluetooth, or USB cable.
-- Receiver VID:PID from Windows Device Manager → device Properties → Details → Hardware Ids.
-- The log at `%LOCALAPPDATA%\MCHOSE_X9_BatteryTray\tray-v9.log`.
+- Connection mode: 2.4 GHz USB receiver, Bluetooth, or USB cable.
+- Receiver VID:PID from Device Manager → device Properties → Details → Hardware Ids.
+- The log at `%LOCALAPPDATA%\MCHOSE\Battery Tray\Logs\app.log` (only if logging is enabled).
 - Whether MCHOSE HUB detects the headset in 2.4 GHz mode.
 
-Do not post serial numbers or personal information. Protocol additions should be restricted to exact receiver IDs and read-only commands.
+Do not post serial numbers or personal information. Protocol additions must be restricted to exact receiver IDs and read-only commands.
 
 ## Sources and protocol research
 
-- [MCHOSE Gaming Headset Software Guide](https://support.mchose.store/hc/en-us/articles/52492201202324-Gaming-Headset-Software-Guide) — current M HUB headset support families and 2.4 GHz connection requirements.
-- [MCHOSE official user manuals](https://www.mchose.store/pages/user-manual) — official headset model list.
-- [OpenMHub supported-device notes](https://github.com/brayanspagnol/OpenMHub) — community mapping of MCHOSE V9 / V9 Pro / G9 Pro / S9 Pro / X9 / V9 Turbo receiver IDs and shared legacy protocol; several IDs are marked untested by that project.
-- [Device-Battery-Info protocol notes](https://github.com/PyFlat/Device-Battery-Info/blob/main/AGENTS.md) — owner-tested V9 Pro (`291D:385D`) legacy HID transaction.
-- [BatteryHub supported-device notes](https://github.com/krisgfx9/Wireless-Device-Battery-Monitor) — separate V9 Pro 2 (`3837:6011`) protocol reference; not implemented in this project.
+- [MCHOSE Gaming Headset Software Guide](https://support.mchose.store/hc/en-us/articles/52492201202324-Gaming-Headset-Software-Guide)
+- [MCHOSE official user manuals](https://www.mchose.store/pages/user-manual)
+- [OpenMHub supported-device notes](https://github.com/brayanspagnol/OpenMHub)
+- [Device-Battery-Info protocol notes](https://github.com/PyFlat/Device-Battery-Info/blob/main/AGENTS.md)
+- [BatteryHub supported-device notes](https://github.com/krisgfx9/Wireless-Device-Battery-Monitor)
 
 This project is independent and is not affiliated with or endorsed by MCHOSE. MCHOSE is a trademark of its respective owner.
+
+## Contributors
+
+See [CONTRIBUTORS.md](CONTRIBUTORS.md). ChatGPT by OpenAI is credited as AI development assistance, not as a human author or copyright holder.
+
+## License
+
+[MIT](LICENSE).
 
 ## Russian documentation
 
 See [README.ru.md](README.ru.md).
-
-## Acknowledgements
-
-- **AI development assistance:** [ChatGPT by OpenAI](https://openai.com/) assisted with implementation, debugging, and documentation. See [CONTRIBUTORS.md](CONTRIBUTORS.md). ChatGPT is credited as a development tool, not as a copyright holder or project maintainer.
-- **Hardware testing:** the project maintainer tested the MCHOSE X9 receiver on Windows 11.
-
-## License
-
-This project is distributed under the [MIT License](LICENSE). The license permits use, modification, and redistribution, including in commercial projects, provided the copyright and license notices are preserved. It is provided without warranty.

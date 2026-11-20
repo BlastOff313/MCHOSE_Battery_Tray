@@ -1,0 +1,8 @@
+[Bb]in/
+[Oo]bj/
+publish/
+dist/
+.vs/
+*.user
+*.suo
+*.log
